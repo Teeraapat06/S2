@@ -18,7 +18,7 @@ WHERE (CategoryID = 1 AND UnitPrice <= 20)
 
 SELECT CompanyName
 FROM Customers
-WHERE Country = 'USA' AND Fax IS NULL
+WHERE Fax IS NULL
 ORDER BY CompanyName;
 
 SELECT *
