@@ -68,7 +68,49 @@ FROM S
 ORDER BY TotalQty ASC, ProductName;
 
 -- 5.   จงแสดงข้อมูลของสินค้าที่ขายในเดือนมกราคม 2540 เรียงตามลำดับจากมากไปน้อย 5 อันดับใส่ลำดับด้วย รวมถึงราคาเฉลี่ยที่ขายให้ลูกค้าทั้งหมดด้วย
+WITH S AS (
+  SELECT
+      p.ProductID, p.ProductName,
+      SUM(od.Quantity) AS TotalQty,
+      SUM(od.UnitPrice * od.Quantity * (1 - od.Discount)) AS TotalSales,
+      AVG(od.UnitPrice * (1 - od.Discount)) AS AvgNetUnitPrice
+  FROM Products p
+  JOIN [Order Details] od ON od.ProductID = p.ProductID
+  JOIN Orders o            ON o.OrderID = od.OrderID
+  WHERE o.OrderDate >= '1997-01-01' AND o.OrderDate < '1997-02-01'
+  GROUP BY p.ProductID, p.ProductName
+)
+SELECT TOP 5
+    ROW_NUMBER() OVER (ORDER BY TotalSales DESC, ProductName) AS ลำดับ,
+    ProductID,
+    ProductName,
+    TotalQty,
+    CAST(TotalSales AS DECIMAL(18,4)) AS TotalSales,
+    CAST(AvgNetUnitPrice AS DECIMAL(18,4)) AS AvgNetUnitPrice
+FROM S
+ORDER BY TotalSales DESC, ProductName;
+
 -- 6.   จงแสดงชื่อพนักงาน จำนวนใบสั่งซื้อ ยอดเงินรวมทั้งหมด ที่พนักงานแต่ละคนขายได้ ในเดือน ธันวาคม 2539 โดยแสดงเพียง 5 อันดับที่มากที่สุด
+WITH S AS (
+  SELECT
+      e.EmployeeID,
+      e.FirstName + ' ' + e.LastName AS EmployeeName,
+      COUNT(DISTINCT o.OrderID) AS OrderCount,
+      SUM(od.UnitPrice * od.Quantity * (1 - od.Discount)) AS TotalSales
+  FROM Employees e
+  JOIN Orders o            ON o.EmployeeID = e.EmployeeID
+  JOIN [Order Details] od  ON od.OrderID = o.OrderID
+  WHERE o.OrderDate >= '1996-12-01' AND o.OrderDate < '1997-01-01'
+  GROUP BY e.EmployeeID, e.FirstName, e.LastName
+)
+SELECT TOP 5
+    EmployeeID,
+    EmployeeName,
+    OrderCount,
+    CAST(TotalSales AS DECIMAL(18,4)) AS TotalSales
+FROM S
+ORDER BY TotalSales DESC, EmployeeName;
+
 -- 7.   จงแสดงรหัสสินค้า ชื่อสินค้า ชื่อประเภทสินค้า ที่มียอดขาย สูงสุด 10 อันดับแรก ในเดือน ธันวาคม 2539 โดยแสดงยอดขาย และจำนวนที่ขายด้วย
 -- 8.   จงแสดงหมายเลขใบสั่งซื้อ ชื่อบริษัทลูกค้า ที่อยู่ เมืองประเทศของลูกค้า ชื่อเต็มพนักงานผู้รับผิดชอบ ยอดรวมในแต่ละใบสั่งซื้อ จำนวนรายการสินค้าในใบสั่งซื้อ และเลือกแสดงเฉพาะที่จำนวนรายการในใบสั่งซื้อมากกว่า 2 รายการ
 -- 9.   จงแสดง ชื่อบริษัทลูกค้า ชื่อผู้ติดต่อ เบอร์โทร เบอร์แฟกซ์ ยอดที่สั่งซื้อทั้งหมดในเดือน ธันวาคม 2539 แสดงผลเฉพาะลูกค้าที่มีเบอร์แฟกซ์
@@ -93,5 +135,66 @@ GROUP BY sh.ShipperID, sh.CompanyName, sh.Phone
 ORDER BY OrdersToUS_CA DESC, ShipperCompany;
 
 -- 18.  ต้องการข้อมูลรายชื่อบริษัทลูกค้า ชื่อผู้ติดต่อ เบอร์โทรศัพท์ เบอร์แฟกซ์ ของลูกค้าที่ซื้อสินค้าประเภท Seafood แสดงเฉพาะลูกค้าที่มีเบอร์แฟกซ์เท่านั้น
+SELECT DISTINCT
+    cu.CustomerID,
+    cu.CompanyName,
+    cu.ContactName,
+    cu.Phone,
+    cu.Fax
+FROM Customers cu
+JOIN Orders o           ON o.CustomerID = cu.CustomerID
+JOIN [Order Details] od ON od.OrderID = o.OrderID
+JOIN Products p         ON p.ProductID = od.ProductID
+JOIN Categories c       ON c.CategoryID = p.CategoryID
+WHERE c.CategoryName = 'Seafood'
+  AND cu.Fax IS NOT NULL
+ORDER BY cu.CompanyName;
+
 -- 19.  จงแสดงชื่อเต็มของพนักงาน  วันเริ่มงาน (รูปแบบ 105) อายุงานเป็นปี เป็นเดือน ยอดขายรวม เฉพาะสินค้าประเภท Condiment ในปี 2540
+WITH tenure AS (
+  SELECT
+      e.EmployeeID,
+      e.FirstName + ' ' + e.LastName AS EmployeeName,
+      e.HireDate,
+      DATEDIFF(MONTH, e.HireDate, GETDATE()) AS TenureMonths
+  FROM Employees e
+),
+sales97 AS (
+  SELECT
+      o.EmployeeID,
+      SUM(od.UnitPrice * od.Quantity * (1 - od.Discount)) AS CondimentsSales97
+  FROM Orders o
+  JOIN [Order Details] od ON od.OrderID = o.OrderID
+  JOIN Products p         ON p.ProductID = od.ProductID
+  JOIN Categories c       ON c.CategoryID = p.CategoryID
+  WHERE c.CategoryName = 'Condiments'
+    AND o.OrderDate >= '1997-01-01' AND o.OrderDate < '1998-01-01'
+  GROUP BY o.EmployeeID
+)
+SELECT
+    t.EmployeeID,
+    t.EmployeeName,
+    CONVERT(varchar(10), t.HireDate, 105) AS HireDate_105,
+    (t.TenureMonths / 12) AS TenureYears,
+    (t.TenureMonths - (t.TenureMonths / 12)*12) AS TenureRemainMonths,
+    CAST(ISNULL(s.CondimentsSales97, 0) AS DECIMAL(18,4)) AS CondimentsSales_1997
+FROM tenure t
+LEFT JOIN sales97 s ON s.EmployeeID = t.EmployeeID
+ORDER BY CondimentsSales_1997 DESC, t.EmployeeName;
+
 -- 20.  จงแสดงหมายเลขใบสั่งซื้อ  วันที่สั่งซื้อ(รูปแบบ 105) ยอดขายรวมทั้งหมด ในแต่ละใบสั่งซื้อ โดยแสดงเฉพาะ ใบสั่งซื้อที่มียอดจำหน่ายสูงสุด 10 อันดับแรก
+WITH per_order AS (
+  SELECT
+      o.OrderID,
+      o.OrderDate,
+      SUM(od.UnitPrice * od.Quantity * (1 - od.Discount)) AS OrderTotal
+  FROM Orders o
+  JOIN [Order Details] od ON od.OrderID = o.OrderID
+  GROUP BY o.OrderID, o.OrderDate
+)
+SELECT TOP 10
+    OrderID,
+    CONVERT(varchar(10), OrderDate, 105) AS OrderDate_105,
+    CAST(OrderTotal AS DECIMAL(18,4)) AS OrderTotal
+FROM per_order
+ORDER BY OrderTotal DESC, OrderID;
