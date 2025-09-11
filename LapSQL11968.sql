@@ -1,4 +1,3 @@
-
 select = from Employees
 where Title = (Select title
 from Employees
@@ -42,6 +41,17 @@ VALUES ('บริษัทขนเยอะจํากัด','081-123456789'
 
 insert into shippers(CompanyName)
 values('บริษัทขนมหาศาลจํากัด')
+
+select * from Employees
+--ต้องการข้อมูล รหัสและชื่อพนักงาน และรหัสและชื่อหัวหน้าพนักงาน
+SELECT
+    emp.EmployeeID,
+    emp.FirstName AS [ชื่อพนักงาน],
+    boss.EmployeeID,
+    boss.FirstName AS [ชื่อหัวหน้า]
+FROM Employees AS emp
+JOIN Employees AS boss
+    ON emp.ReportsTo = boss.EmployeeID;
 
 SELECT * from Customers
 --ตารางที่มี px เป็น char
